@@ -1,0 +1,38 @@
+# =============================================================================
+# Vault Project Version Control
+# =============================================================================
+
+# --- Python Build & Bytecode ---
+build/
+dist/
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+*.pyo
+*.pyd
+
+# --- Linting & Formatting ---
+.ruff_cache/
+.mypy_cache/
+
+# --- Virtual Environments ---
+.venv/
+venv/
+env/
+
+# --- Test Outputs & Coverage ---
+.pytest_cache/
+.coverage
+htmlcov/
+test-results/
+*.bkup
+
+# --- Operational Logs ---
+*.log
+vault_automation.log
+
+# --- Local Secrets (Redundant Protection) ---
+.env
+.env.*
+!contexts.yaml

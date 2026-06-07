@@ -1,0 +1,11 @@
+# Defines ACL policies for the Cloud Boot App.
+# Allows the application to read its own secrets and perform transit encryption if needed.
+api_paths:
+- api_path: v1/sys/policy/cloud-boot-app-policy
+  api_action: post
+  api_payload:
+    path:
+      "cloud-boot-app/data/*":
+        capabilities: ["read"]
+      "transit/encrypt/cloud-boot-app":
+        capabilities: ["update"]

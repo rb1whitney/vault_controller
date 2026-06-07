@@ -1,0 +1,11 @@
+# Configures audit logging devices for the Vault cluster.
+# Essential for tracking all requests and responses.
+
+api_paths:
+- api_path: v1/sys/audit/audit_file
+  api_payload:
+    description: Default-Audit-Log
+    options:
+      file_path: /var/log/vault.log
+    type: file
+  api_action: post

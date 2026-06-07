@@ -1,0 +1,19 @@
+# Secret Generation Rules Engine
+# Define custom workflows for creating credentials. 
+# Use {param} for variable injection.
+
+rules:
+  random_string:
+    description: "Generate a cryptographically secure random string."
+    command: "python3 -c 'import secrets, string; print(\"\".join(secrets.choice(string.ascii_letters + string.digits) for _ in range({length})))'"
+    params: ["length"]
+
+  gcp_sa_key:
+    description: "Create and return a new GCP Service Account JSON key."
+    command: "gcloud iam service-accounts keys create /dev/stdout --iam-account={name}@{project}.iam.gserviceaccount.com"
+    params: ["name", "project"]
+
+  aws_iam_key:
+    description: "Generate a new AWS IAM Access Key pair."
+    command: "aws iam create-access-key --user-name {name} --query 'AccessKey.[AccessKeyId,SecretAccessKey]' --output json"
+    params: ["name"]

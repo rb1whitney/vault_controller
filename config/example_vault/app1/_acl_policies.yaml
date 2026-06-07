@@ -1,0 +1,71 @@
+# Defines the Access Control List (ACL) policies for Vault roles and users.
+# Controls which paths and actions are permitted.
+
+api_paths:
+- api_path: v1/sys/policy/app1-authenticator-writer
+  api_payload:
+    path:
+      app1-authenticator/*:
+        capabilities:
+        - create
+        - update
+        - delete
+  api_action: post
+- api_path: v1/sys/policy/app1-authenticator-reader
+  api_payload:
+    path:
+      app1-authenticator/*:
+        capabilities:
+        - read
+        - list
+  api_action: post
+- api_path: v1/sys/policy/app1-team-secrets-writer
+  api_payload:
+    path:
+      app1-team-secrets/*:
+        capabilities:
+        - create
+        - update
+        - delete
+  api_action: post
+- api_path: v1/sys/policy/app1-team-secrets-reader
+  api_payload:
+    path:
+      app1-team-secrets/*:
+        capabilities:
+        - read
+        - list
+  api_action: post
+- api_path: v1/sys/policy/app1-admin
+  api_payload:
+    path:
+      sys/mounts/app1-*:
+        capabilities:
+        - create
+        - read
+        - update
+        - delete
+        - list
+      transit/keys/app1-transit-key/rotate:
+        capabilities:
+        - update
+      transit/export/encryption-key/app1-transit-key:
+        capabilities:
+        - read
+      transit/export/encryption-key/app1-transit-key/*:
+        capabilities:
+        - read
+      transit/backup/app1-transit-key:
+        capabilities:
+        - read
+      transit/keys/app1-transit-key:
+        capabilities:
+        - create
+        - update
+        - read
+        - list
+      transit/restore/app1-transit-key:
+        capabilities:
+        - create
+        - update
+  api_action: post

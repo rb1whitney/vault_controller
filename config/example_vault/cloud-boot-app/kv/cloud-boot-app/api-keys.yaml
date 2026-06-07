@@ -1,0 +1,11 @@
+# Third-party API keys for external service integrations.
+api_paths:
+- api_path: v1/cloud-boot-app/data/api-keys
+  api_action: post
+  api_payload:
+    data:
+      stripe_key: "vault:v1:S2t6e_sk_test_51...2026"
+      twilio_sid: "vault:v1:T2w_AC...2026"
+      sendgrid_token: "vault:v1:S2g_SG...2026"
+  transit_engine: "transit"
+  transit_key: "vault-admin-transit-key"

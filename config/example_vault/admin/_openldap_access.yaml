@@ -1,0 +1,22 @@
+# Specific configuration binding OpenLDAP groups/users to Vault policies.
+
+api_paths:
+- api_path: v1/auth/ldap/groups/vault-admin
+  api_payload:
+    policies:
+    - admin-access
+    - transit-admin
+    - vault-admin-writer
+    - vault-admin-reader
+    - transit-encrypt-global
+    - transit-decrypt-vault-admin
+  api_action: post
+- api_path: v1/auth/ldap/groups/vault-auditor
+  api_payload:
+    policies:
+    - auditor-access
+    - vault-auditor-writer
+    - vault-auditor-reader
+    - transit-encrypt-global
+    - transit-decrypt-vault-auditor
+  api_action: post
