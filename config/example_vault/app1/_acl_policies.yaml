@@ -36,19 +36,33 @@ api_paths:
         - read
         - list
   api_action: post
-- api_path: v1/sys/policy/app1-admin
+- api_path: v1/sys/policy/app1-admin-writer
   api_payload:
     path:
       sys/mounts/app1-*:
         capabilities:
         - create
-        - read
         - update
         - delete
-        - list
       transit/keys/app1-transit-key/rotate:
         capabilities:
         - update
+      transit/keys/app1-transit-key:
+        capabilities:
+        - create
+        - update
+      transit/restore/app1-transit-key:
+        capabilities:
+        - create
+        - update
+  api_action: post
+- api_path: v1/sys/policy/app1-admin-reader
+  api_payload:
+    path:
+      sys/mounts/app1-*:
+        capabilities:
+        - read
+        - list
       transit/export/encryption-key/app1-transit-key:
         capabilities:
         - read
@@ -60,12 +74,6 @@ api_paths:
         - read
       transit/keys/app1-transit-key:
         capabilities:
-        - create
-        - update
         - read
         - list
-      transit/restore/app1-transit-key:
-        capabilities:
-        - create
-        - update
   api_action: post

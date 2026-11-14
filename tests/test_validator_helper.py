@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import MagicMock, patch
-from projects.vault.lib.validation.manager import ValidationManager
+from projects.vault_controller.lib.validation.manager import ValidationManager
 
 @pytest.fixture
 def mock_logger():
@@ -35,11 +35,11 @@ def test_prohibit_read_write_policy(mock_yaml_load, mock_logger):
         }]
     }
     with patch("builtins.open", MagicMock()):
-        # Mocking the namespace check to avoid path parsing complexity
-        with patch.object(validator, "_validate_namespaces", return_value=[]):
+        # Mocking namespace dir check
+        with patch.object(validator, "_validate_namespace_dir", return_value=[]):
             errors = validator.validate("dev", files=["test.yaml"])
-    assert len(errors) == 1
-    assert "v1/sys/policy/test" in errors[0]
+    assert len(errors) > 0
+    assert any("mixes Read/Write" in e for e in errors)
 
 @patch("yaml.safe_load")
 def test_prohibit_long_lived_tokens(mock_yaml_load, mock_logger):
@@ -47,6 +47,7 @@ def test_prohibit_long_lived_tokens(mock_yaml_load, mock_logger):
     mock_yaml_load.return_value = {
         "api_paths": [{
             "api_path": "v1/sys/mounts/test",
+            "api_action": "post",
             "api_payload": {
                 "type": "kv",
                 "config": {
@@ -57,19 +58,47 @@ def test_prohibit_long_lived_tokens(mock_yaml_load, mock_logger):
         }]
     }
     with patch("builtins.open", MagicMock()):
-        with patch.object(validator, "_validate_namespaces", return_value=[]):
-            with patch.object(validator, "_prohibit_read_write_policy", return_value=[]):
-                errors = validator.validate("dev", files=["test.yaml"])
-    assert len(errors) == 1
-    assert "800h" in str(errors) or "Default TTL" in errors[0]
+        with patch.object(validator, "_validate_namespace_dir", return_value=[]):
+            errors = validator.validate("dev", files=["test.yaml"])
+    assert len(errors) > 0
+    assert any("exceeds 1h limit" in e for e in errors)
+
+
+def test_prohibit_raw_seconds_ttl_bypass(mock_logger):
+    validator = ValidationManager("namespaces", mock_logger)
+    payload = {
+        "_namespace": "test",
+        "api_paths": [{
+            "api_path": "v1/sys/mounts/test",
+            "api_action": "post",
+            "api_payload": {"config": {"default_lease_ttl": "7200"}},
+        }],
+    }
+    errors = validator.validate("dev", payload=payload)
+    assert any("exceeds 1h limit" in e for e in errors)
+
+
+def test_prohibit_modern_acl_put_read_write_policy(mock_logger):
+    validator = ValidationManager("namespaces", mock_logger)
+    payload = {
+        "_namespace": "test",
+        "api_paths": [{
+            "api_path": "v1/sys/policies/acl/test",
+            "api_action": "put",
+            "api_payload": {"path": {"secret/*": {"capabilities": ["read", "update"]}}},
+        }],
+    }
+    errors = validator.validate("dev", payload=payload)
+    assert any("mixes Read/Write" in e for e in errors)
 
 def test_validate_dispatch(mock_logger):
     validator = ValidationManager("namespaces", mock_logger)
-    with patch.object(validator, "_validate_namespaces") as mock_val_ns:
-        with patch.object(validator, "_prohibit_read_write_policy") as mock_prohibit_rw:
-            with patch.object(validator, "_prohibit_long_lived_tokens") as mock_prohibit_ll:
-                mock_val_ns.return_value = ["error1"]
-                mock_prohibit_rw.return_value = []
-                mock_prohibit_ll.return_value = []
-                errors = validator.validate("dev", files=["test.yaml"])
-                assert "error1" in errors
+    # Testing that it actually calls Pydantic and finds errors
+    payload = {
+        "_namespace": "test",
+        "api_paths": [
+            {"api_path": "v1/sys/policy/test", "api_action": "post", "api_payload": {"path": {"*": {"capabilities": ["read", "update"]}}}}
+        ]
+    }
+    errors = validator.validate("dev", payload=payload)
+    assert any("mixes Read/Write" in e for e in errors)

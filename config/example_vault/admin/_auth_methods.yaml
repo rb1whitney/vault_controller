@@ -16,16 +16,16 @@ api_paths:
     groupattr: cn
     groupdn: ou=groups,dc=corp,dc=org
     groupfilter: (|(memberUid={{.Username}})(member={{.UserDN}})(uniqueMember={{.UserDN}}))
-    insecure_tls: true
+    insecure_tls: false
     starttls: true
     token_bound_cidrs: []
-    token_max_ttl: 0
+    token_max_ttl: 28800
     token_no_default_policy: false
     token_num_uses: 0
     token_policies:
     - namespace-encryption
     token_period: 0
-    token_ttl: 0
+    token_ttl: 3600
     token_type: default
     upndomain: ''
     url: ldaps://127.0.0.1

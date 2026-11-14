@@ -1,52 +1,54 @@
 # HashiCorp Vault State Controller
 
-This repository contains automation logic wrapping the Vault CLI and API to maintain the desired state for any given HashiCorp Vault Cluster. The core engine performs writes against the cluster using YAML manifests found in the `config/example_vault` folder. 
+This repository contains automation logic for maintaining the desired state for any given HashiCorp Vault Cluster. The core engine is refactored to use the official **hvac** Python library and **pydantic** for robust, declarative data validation.
 
 Crucially, the suite can ingest **Vault Transit** encrypted data within the repository and perform in-line decryption prior to execution. This allows teams to practice complete **Infrastructure as Code (IaC)** patterns without ever committing plain-text sensitive data to source control. 
 
-This repository is designed to be utilized directly from a CI/CD orchestrator (GitHub Actions, GitLab CI) against any target Vault cluster. The engine is built to be resilient, ignoring redundant warnings (such as secret engines that are already enabled) while performing subsequent idempotent writes to all other resources.
-
 ```mermaid
 graph TD
-    User["Operator CI Pipeline"] -- "1. Set VAULT_AUTH_*" --> Scripts["bin Toolchain"]
+    User["Operator CI Pipeline"] -- "1. Invoke CLI" --> Scripts["vault-ctl CLI"]
     Scripts -- "2. Load YAML Payloads" --> YAML["example_vault"]
-    Scripts -- "3. Negotiate Auth" --> Strategy["lib auth Strategy"]
-    Strategy -- "4. Session Token" --> Core["lib core Client Adapter"]
-    Scripts -- "5. Process Payloads" --> Engines["lib engines PayloadProcessor"]
-    Engines -- "6. In-line Decrypt" --> Transit["Vault Transit Engine"]
-    Transit -- "7. Plaintext Memory Only" --> Engines
-    Engines -- "8. Execute Actions" --> Core
-    Core -- "9. REST API Requests" --> Vault["HashiCorp Vault Cluster"]
-    Validation["lib validation"] -. "Audit Loop" .-> Scripts
+    Scripts -- "3. Validate Data" --> Pydantic["lib/validation (Pydantic)"]
+    Scripts -- "4. Negotiate Auth" --> Strategy["lib/auth (hvac)"]
+    Strategy -- "5. Session Token" --> Core["lib/core (hvac.Client)"]
+    Scripts -- "6. Process Payloads" --> Engines["lib/engines (hvac)"]
+    Engines -- "7. In-line Decrypt" --> Transit["Vault Transit Engine"]
+    Transit -- "8. Plaintext Memory Only" --> Engines
+    Engines -- "9. Execute Actions" --> Core
+    Core -- "10. REST API Requests" --> Vault["HashiCorp Vault Cluster"]
 ```
 
 ## Key Technical Breakthroughs
-- **Strategy-Based Auth**: Support for AWS IAM, GCP Workload Identity, LDAP, and AppRole using unified `VAULT_AUTH_*` environment variables.
+- **Hvac-Powered Core**: Replaces custom HTTP adapters with the official HashiCorp `hvac` library for improved stability and access to native Vault APIs.
+- **Pydantic Validation**: Uses typed models to enforce payload schemas and complex business logic (e.g., TTL limits, namespace directory isolation) before network calls.
+- **Modern CLI**: Consolidated toolchain into a single, user-friendly `vault-ctl` command powered by **Typer** and **Rich**.
 - **In-Repo Secret Safety**: Sensitive data is committed as **Vault Transit Ciphertext**, decrypted in volatile memory only during deployment via the `PayloadProcessor`.
-- **Modular Library**: Decoupled core client (`lib/core`), engine processors (`lib/engines`), and business-logic validation managers (`lib/validation`).
 
 ## Requirements
 *   **Python 3.10+** (Mandatory)
 *   **HashiCorp Vault Binary** (v1.15+)
-*   **Gemini / Claude** (Optional, for GPU-accelerated assistance)
+*   **Dependencies**: `hvac`, `pydantic`, `typer`, `rich`, `PyYAML`, `requests`
 
 ## Quick Start: CLI Usage
 
-To interact with a Vault cluster, configure your unified authentication variables and use the `bin/` toolchain.
+The primary entry point is the consolidated `vault-ctl` CLI. Ensure the project root is in your `PYTHONPATH`.
 
 ```bash
-# 1. Define Unified Auth (Example: AWS IAM)
-export VAULT_AUTH_TYPE="aws"
-export VAULT_AUTH_PRINCIPAL="my-automation-role"
+export PYTHONPATH=$PYTHONPATH:$(pwd)
 
-# 2. Deploy Configuration Payloads (YAML)
-# Automatically handles in-line Transit decryption
-python3 bin/cluster_secret_data.py --name example_vault --path ./config/example_vault/admin/
+# Check cluster status
+python3 projects/vault_controller/bin/vault_ctl.py cluster status --name example_vault
+
+# Deploy configuration payloads (YAML)
+# Automatically handles validation and in-line Transit decryption
+python3 projects/vault_controller/bin/vault_ctl.py secrets deploy \
+  --name example_vault \
+  --path ./projects/vault_controller/config/example_vault/admin/
 ```
 
 ### Supported Auth Strategies
-- **AWS**: `VAULT_AUTH_TYPE=aws` (Uses Boto3 STS signed requests)
-- **GCP**: `VAULT_AUTH_TYPE=gcp` (Uses GCP Metadata JWTs)
+- **AWS**: `VAULT_AUTH_TYPE=aws` (Uses `hvac` IAM login)
+- **GCP**: `VAULT_AUTH_TYPE=gcp` (Uses `hvac` GCP login with Metadata JWTs)
 - **LDAP**: `VAULT_AUTH_TYPE=ldap`, `VAULT_AUTH_PRINCIPAL=username`, `VAULT_AUTH_SECRET=password`
 - **Token**: `VAULT_AUTH_TYPE=token`, `VAULT_AUTH_SECRET=hvs...`
 
@@ -55,9 +57,6 @@ python3 bin/cluster_secret_data.py --name example_vault --path ./config/example_
 We enforce 100% functional parity through `pytest`. The suite includes unit tests for core logic and integration tests against a containerized `vault server -dev` environment.
 
 ```bash
-# Set PYTHONPATH to include local lib
-export PYTHONPATH=$PYTHONPATH:$(pwd)/projects/vault_controller
-
 # Run the full suite
 pytest projects/vault_controller/tests/
 ```

@@ -66,17 +66,6 @@ api_paths:
         - delete
         - list
         - sudo
-      sys/generate-root/attempt:
-        capabilities:
-        - create
-        - read
-        - update
-        - delete
-        - list
-      sys/generate-root/update:
-        capabilities:
-        - create
-        - update
       sys/key-status:
         capabilities:
         - read
@@ -87,10 +76,10 @@ api_paths:
       sys/audit-hash/*:
         capabilities:
         - create
-      sys/audit/*:
+      sys/audit:
         capabilities:
-        - delete
-        - sudo
+        - read
+        - list
       sys/config/auditing/request-headers:
         capabilities:
         - read
@@ -180,14 +169,14 @@ api_paths:
 - api_path: v1/sys/policy/transit-decrypt-vault-admin
   api_payload:
     path:
-      transit/encrypt/vault-admin:
+      transit/decrypt/vault-admin:
         capabilities:
         - update
   api_action: post
 - api_path: v1/sys/policy/transit-decrypt-vault-auditor
   api_payload:
     path:
-      transit/encrypt/vault-auditor:
+      transit/decrypt/vault-auditor:
         capabilities:
         - update
   api_action: post

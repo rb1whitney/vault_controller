@@ -20,7 +20,14 @@ dependencies = [
     "requests",
     "PyYAML",
     "urllib3",
+    "hvac",
+    "pydantic",
+    "typer",
+    "rich",
 ]
+
+[project.scripts]
+vault-ctl = "projects.vault_controller.bin.vault_ctl:app"
 
 [project.urls]
 "Homepage" = "https://github.com/rb1whitney/vault-controller"
@@ -33,6 +40,7 @@ target-version = "py38"
 [tool.pytest.ini_options]
 minversion = "6.0"
 addopts = "-ra -q"
+pythonpath = ["../.."]
 testpaths = [
     "tests",
 ]

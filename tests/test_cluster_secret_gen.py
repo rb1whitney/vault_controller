@@ -1,11 +1,10 @@
-import os
 import subprocess
 from unittest.mock import MagicMock, patch
 
 import pytest
 import yaml
 
-from projects.vault.bin.cluster_secret_gen import SecretGenerator
+from projects.vault_controller.lib.utils.ops import SecretGenerator
 
 
 @pytest.fixture
@@ -43,8 +42,8 @@ def test_generate_success(rules_file, mock_logger):
         
         assert res == "generated-value"
         mock_run.assert_called_once()
-        # Verify shell=True is used as per script requirement
-        assert mock_run.call_args[1]["shell"] is True
+        # Verify shell=False is used for security
+        assert mock_run.call_args[1].get("shell", False) is False
 
 
 def test_generate_missing_params(rules_file, mock_logger):
@@ -78,3 +77,9 @@ def test_generate_failure(rules_file, mock_logger):
             gen.generate("test_rule", param="fail")
         
         mock_logger.error.assert_called()
+
+
+def test_generate_unsafe_param(rules_file, mock_logger):
+    gen = SecretGenerator(rules_file, mock_logger)
+    with pytest.raises(ValueError, match="Unsafe characters"):
+        gen.generate("test_rule", param="1)); __import__('os').system('id'")

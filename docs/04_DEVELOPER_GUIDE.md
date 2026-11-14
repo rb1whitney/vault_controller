@@ -19,81 +19,82 @@ The codebase is partitioned into executable entrypoints and stateless domain mec
 
 ```bash
 projects/vault/
-├── bin/                       <── Entrypoints (thin controllers)
-│   ├── cluster_secret_data.py
-│   ├── cluster_ops.py
-│   └── cluster_encrypt_ops.py
+├── bin/                       <── Consolidated CLI Entrypoint
+│   └── vault_ctl.py           <── Main Typer CLI
 ├── lib/                       <── Domain Mechanics (stateless logic)
 │   ├── core/
-│   │   ├── auth.py            <── Unified Auth negotiation
-│   │   └── client.py          <── HTTP transport & base methods
+│   │   ├── hvac_client.py     <── hvac.Client wrapper
+│   │   ├── adapter.py         <── Legacy adapter for backward compatibility
+│   │   └── client.py          <── High-level client orchestrator
+│   ├── auth/
+│   │   ├── factory.py         <── Auth strategy factory
+│   │   ├── standard.py        <── Token, LDAP, AppRole (hvac)
+│   │   └── cloud.py           <── AWS, GCP (hvac)
 │   ├── engines/
-│   │   ├── manager.py         <── Engine orchestration
-│   │   ├── kv.py              <── KV backend logic
-│   │   └── transit.py         <── Cryptographic operations
+│   │   └── payload_processor.py <── Transit & KV-V2 logic (hvac)
 │   ├── validation/
-│   │   └── schema.py          <── YAML schema enforcement
+│   │   ├── models.py          <── Pydantic data models
+│   │   └── manager.py         <── Validation orchestrator
 │   └── utils/
-│       ├── http.py            <── Resiliency wrappers
-│       └── logging.py         <── Standardized telemetry
+│       ├── settings.py        <── Dataclass-based config loader
+│       └── ops.py             <── High-level cluster operations
 └── tests/                     <── Pytest suite
-    └── integration/
-        └── test_reconciliation.py
+    ├── test_integration.py    <── Full-lifecycle reconciliation
+    └── test_auth_strategies.py <── Mocked hvac auth flows
 ```
 
 ### 1. Execution Boundary (`bin/`)
-Scripts in `bin/` manage environment context and coordinate system streams. They must not contain raw HTTP logic or complex data parsing.
+The `vault_ctl.py` CLI uses **Typer** to coordinate subcommands (`cluster`, `secrets`). It translates user input into calls to `lib/utils/ops.py` or directly initializes library components.
 
 ### 2. Domain Mechanics Layer (`lib/`)
-Business logic resides within the `projects.vault.lib` namespace. Modules are decoupled by functionality (core transport, engine specific logic, validation, and utilities).
+Business logic is decoupled into specific domain modules:
+- **`lib/core`**: Low-level transport using the official `hvac` library.
+- **`lib/auth`**: Pluggable authentication strategies leveraging `hvac` native methods.
+- **`lib/validation`**: Declarative schema and business rule enforcement using **Pydantic**.
+- **`lib/engines`**: Logic for secret engines (Transit decryption, KV management).
 
 ---
 
 ## Module Design Patterns & API Anatomy
 
-### 1. Transport Core: `projects.vault.lib.core.client.VaultClient`
-Encapsulates session state and outbound mutations.
+### 1. Transport Core: `projects.vault_controller.lib.core.client.LocalVaultClient`
+Encapsulates session state and outbound mutations. Now exposes the underlying `hvac_client`.
 
 ```python
-from projects.vault.lib.core.client import VaultClient
+from projects.vault_controller.lib.core.client import LocalVaultClient
+import logging
 
-# Initialization via Unified Auth
-client = VaultClient(
-    addr="http://localhost:8200",
-    auth_type="token",
-    principal="admin",
-    secret="hvs.root"
-)
+logger = logging.getLogger("dev")
+client = LocalVaultClient("http://localhost:8200", logger)
 
-# Deterministic GET operation
-response = client.get("sys/mounts")
+# Authentication via Strategy Factory
+client.login(auth_method="token")
+
+# Access native hvac methods
+health = client.hvac_client.sys.read_health_status()
 ```
 
-### 2. Schema Validation: `projects.vault.lib.validation.schema.SchemaValidator`
-Enforces structural integrity of YAML manifests before network execution.
+### 2. Pydantic Validation: `projects.vault_controller.lib.validation.models.VaultPayload`
+Enforces structural integrity and complex business rules (e.g., TTL limits) using typed models.
 
 ```python
-import yaml
-from projects.vault.lib.validation.schema import SchemaValidator
+from projects.vault_controller.lib.validation.models import VaultPayload
 
-validator = SchemaValidator()
-with open("blueprint.yaml", "r") as f:
-    config = yaml.safe_load(f)
-
-# Raises ValidationError on structural failure
-validator.validate(config)
+data = {"_namespace": "test", "api_paths": [...]}
+# Automatic validation on instantiation
+payload = VaultPayload(**data) 
 ```
 
 ---
 
 ## Deterministic Integration Testing
 
-Verification is enforced through `pytest`. The suite utilizes local ephemeral `example_vault` containers to validate configurations in isolation.
+Verification is enforced through `pytest`. The suite utilizes a local ephemeral `vault server -dev` process.
 
 ```python
 import pytest
-from projects.vault.lib.core.client import VaultClient
-from projects.vault.lib.engines.manager import EngineManager
+from projects.vault_controller.lib.core.client import VaultClient
+from projects.vault_controller.lib.engines.manager import EngineManager
 
 @pytest.fixture
 def vault_client():
@@ -121,7 +122,7 @@ pytest projects/vault/tests/
 
 ## Operational Safety Guardrails
 
-- **Explicit Timeouts**: All network calls must implement a 10s timeout via `projects.vault.lib.utils.http`.
+- **Explicit Timeouts**: All network calls must implement a 10s timeout via `projects.vault_controller.lib.utils.http`.
 - **Statelessness**: No local state files are permitted. The cluster is the only source of truth.
 - **Error Propagation**: Low-level API errors must be wrapped in domain-specific exceptions (e.g., `VaultAPIError`) to assist with debugging.
 

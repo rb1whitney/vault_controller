@@ -15,92 +15,67 @@ This guide details the explicit runtime mechanics, operational workflows, and fa
 
 ## Operational Core Mechanics & API Anatomy
 
-The controller leverages `projects.vault.lib.core.client` for all low-level cluster mutations. This ensures consistent timeout handling, retries, and unified logging across administrative tasks.
+The controller leverages `projects.vault_controller.lib.core.client.LocalVaultClient` for all low-level cluster mutations. This client is powered by the **hvac** library, ensuring consistent timeout handling, retries, and access to native Vault API features.
 
-```python
+```bash
 # !/usr/bin/env python3
 """
 Principal Infrastructure Suite: Admin Edge Orchestrator.
-Utilizes projects.vault.lib for zero-trust boundary enforcement.
+Utilizes the consolidated vault-ctl CLI for cluster operations.
 """
 
-import os
-from projects.vault.lib.core.client import VaultClient
-from projects.vault.lib.engines.audit import AuditManager
+# Check health and seal status across the cluster
+vault-ctl cluster status --name example_vault
 
-def setup_cluster_audit():
-    # Unified Auth context
-    client = VaultClient(
-        addr=os.getenv("VAULT_ADDR"),
-        auth_type=os.getenv("VAULT_AUTH_TYPE"),
-        principal=os.getenv("VAULT_AUTH_PRINCIPAL"),
-        secret=os.getenv("VAULT_AUTH_SECRET")
-    )
-    
-    audit_manager = AuditManager(client)
-    
-    # Define audit device via YAML-derived payload
-    config = {
-        "type": "file",
-        "options": {
-            "file_path": "/var/log/vault/audit.log",
-            "log_raw": "false"
-        }
-    }
-    
-    audit_manager.enable("syslog-device", config)
-    print("[*] Audit device synchronized.")
+# Unseal nodes using Shamir keys
+vault-ctl cluster unseal --name example_vault <KEY_1> <KEY_2> <KEY_3>
 ```
 
 ---
 
 ## Unified Authentication & Session Management
 
-Fragmented environment variables (e.g., `VAULT_TOKEN`, `VAULT_ROLE_ID`) are deprecated. All operations must utilize the Unified Auth triad:
+Authentication is managed via pluggable strategies in `lib/auth/`. The controller supports the following methods:
 
-1.  `VAULT_AUTH_TYPE`: (e.g., `aws`, `gcp`, `ldap`, `approle`, `token`)
-2.  `VAULT_AUTH_PRINCIPAL`: The identity identifier (Role Name, Username, or Role ID).
-3.  `VAULT_AUTH_SECRET`: The authentication credential (Secret Key, Password, or Token).
+1.  **Token**: `VAULT_AUTH_TYPE=token`, `VAULT_AUTH_SECRET=<TOKEN>`
+2.  **LDAP**: `VAULT_AUTH_TYPE=ldap`, `VAULT_AUTH_PRINCIPAL=<USER>`, `VAULT_AUTH_SECRET=<PASS>`
+3.  **AppRole**: `VAULT_AUTH_TYPE=approle`, `VAULT_AUTH_PRINCIPAL=<ROLE_ID>`, `VAULT_AUTH_SECRET=<SECRET_ID>`
+4.  **AWS/GCP**: Cloud-native identity handshakes leveraging `hvac`'s specialized auth methods.
 
-The `projects.vault.lib.core.auth` module handles the negotiation logic for these strategies, returning a time-limited session token to the client.
+The `AuthStrategyFactory` dynamically selects the strategy, which then configures the underlying `hvac.Client` instance within the `LocalVaultClient`.
 
 ---
 
 ## State and Execution Sequence Diagram
 
-The following sequence diagram illustrates the idempotent reconciliation loop executed by `bin/cluster_secret_data.py`.
+The following sequence diagram illustrates the idempotent reconciliation loop executed by `vault-ctl secrets deploy`.
 
 ```mermaid
 sequenceDiagram
     participant CI as CI Runner
-    participant CTRL as Controller (bin/cluster_secret_data.py)
-    participant LIB as Library (projects.vault.lib)
-    participant API as Vault API (example_vault)
+    participant CLI as vault-ctl CLI
+    participant VAL as Validation (Pydantic)
+    participant API as Vault API (hvac)
 
-    CI->>CTRL: Execute (YAML Path)
-    CTRL->>LIB: Load & Validate Payload (projects.vault.lib.validation)
-    LIB-->>CTRL: Validated Schema
-    CTRL->>LIB: Authenticate (projects.vault.lib.core.auth)
-    LIB->>API: Login Request
-    API-->>LIB: Session Token
-    CTRL->>LIB: Reconcile State (projects.vault.lib.engines)
-    LIB->>API: GET current state
-    API-->>LIB: Current Configuration
-    LIB->>LIB: Calculate Delta
-    LIB->>API: PUT/POST mutations (Target State)
-    API-->>LIB: 204 No Content / Success
-    CTRL-->>CI: Exit Code 0
+    CI->>CLI: Execute deploy (YAML Path)
+    CLI->>VAL: Validate Payload (lib/validation/models.py)
+    VAL-->>CLI: Validated Model
+    CLI->>API: Authenticate (lib/auth/factory.py)
+    API-->>CLI: Session Token
+    CLI->>API: Execute Mutations (lib/core/client.py)
+    API-->>CLI: 204 No Content / Success
+    CLI-->>CI: Exit Code 0
 ```
 
 ---
 
 ## Fault Isolation & Defensive Guardrails
 
-### 1. Circuit Breaking
-The `projects.vault.lib.utils.http` wrapper implements exponential backoff and circuit breaking. If the cluster returns 5xx errors, the controller halts to prevent cascading failures in the CI runner.
+### 1. Pydantic Enforcement
+The `ValidationManager` utilizes **Pydantic** models to perform pre-flight checks. Any payload violating schema or business rules (e.g., mixing read/write capabilities in a single policy path) is rejected before any network calls are made.
 
-### 2. Schema Hardening
-Administrators must define regex constraints within `projects.vault.lib.validation.schema`. Any attempt to provision a policy with `sudo` capabilities on `sys/` paths will be rejected during the pre-flight validation phase.
+### 2. Namespace Sovereignty
+Deployment logic enforces directory-to-namespace parity. Configuration for `namespaces/app1/` must specify `_namespace: app1` in the YAML, or the `ValidationManager` will raise a mismatch error.
 
 ### 3. Verification Metrics
 Every administrative run must be verified via `pytest`.

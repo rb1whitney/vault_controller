@@ -6,6 +6,6 @@ api_paths:
   api_payload:
     description: Default-Audit-Log
     options:
-      file_path: /var/log/vault.log
+      file_path: /tmp/vault_audit.log
     type: file
   api_action: post

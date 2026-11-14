@@ -1,7 +1,6 @@
-import json
-
 from ..auth.factory import AuthStrategyFactory
 from .adapter import VaultClientAdapter
+from .errors import VaultError
 
 
 class LocalVaultClient:
@@ -31,6 +30,11 @@ class LocalVaultClient:
         )
         self.namespace = namespace
 
+    @property
+    def hvac_client(self):
+        """Returns the underlying hvac.Client instance."""
+        return self.adapter.hvac_client.client
+
     def login(self, auth_method=None, mount_point=None, payload=None):
         """
         Authenticates the client using the specified strategy.
@@ -40,8 +44,9 @@ class LocalVaultClient:
 
         auth_type = auth_method or os.environ.get("VAULT_AUTH_TYPE")
         if not auth_type:
-            self.logger.error("Authentication failed: VAULT_AUTH_TYPE not set.")
-            exit(1)
+            msg = "Authentication failed: VAULT_AUTH_TYPE not set."
+            self.logger.error(msg)
+            raise VaultError(message=msg)
 
         mount_point = mount_point or auth_type
 
@@ -49,8 +54,9 @@ class LocalVaultClient:
             strategy = AuthStrategyFactory.get_strategy(auth_type, self.logger)
             strategy.authenticate(self.adapter, mount_point=mount_point, payload=payload)
         except Exception as e:
-            self.logger.error(f"Authentication error with strategy '{auth_type}': {e}")
-            exit(1)
+            msg = f"Authentication error with strategy '{auth_type}': {e}"
+            self.logger.error(msg)
+            raise VaultError(message=msg) from e
 
         if self.adapter.token:
             self._lookup_self()
@@ -63,7 +69,7 @@ class LocalVaultClient:
             self.logger.info(f"Authorized successfully against {self.adapter.base_uri}")
             self.logger.debug(f"Assigned Policies: {policies}")
         except Exception:
-            self.logger.info(f"Authorized successfully (policy lookup skipped)")
+            self.logger.info("Authorized successfully (policy lookup skipped)")
 
     def submit(self, payload_paths):
         """
@@ -82,13 +88,27 @@ class LocalVaultClient:
             try:
                 if data:
                     # Mask potential secrets in debug logs
-                    self.logger.debug(f"Payload (Masked): <REDACTED_SENSITIVE_DATA>")
+                    self.logger.debug("Payload (Masked): <REDACTED_SENSITIVE_DATA>")
 
                 res = self.adapter.request(action, path, json=data, timeout=30)
 
-                if res.status_code != 204 and res.content:
-                    resp_json = res.json()
-                    self.logger.debug(f"Response: {json.dumps(resp_json, indent=2)}")
+                # Handle both requests.Response and dict (some adapters return JSON directly)
+                status_code = getattr(res, "status_code", 200)
+                content = getattr(res, "content", None)
+
+                if status_code != 204 and (content or isinstance(res, dict)):
+                    if isinstance(res, dict):
+                        resp_json = res
+                    else:
+                        try:
+                            resp_json = res.json()
+                        except ValueError:
+                            self.logger.debug("Response content is not JSON")
+                            resp_json = {"content": content.decode("utf-8") if content else ""}
+
+                    self.logger.debug(
+                        f"Response (Masked): status={status_code}, keys={list(resp_json.keys())}"
+                    )
                     responses.append(resp_json)
                 else:
                     responses.append({})
@@ -120,7 +140,9 @@ class LocalVaultClient:
         return self.submit([{"api_path": path, "api_action": "list"}])[0]
 
     def logout(self):
-        """Revokes the current token."""
+        """Revokes the current token and clears it from memory."""
         if self.adapter.token:
-            self.post("/v1/auth/token/revoke-self", None)
-            self.adapter.token = None
+            try:
+                self.post("/v1/auth/token/revoke-self", None)
+            finally:
+                self.adapter.token = None

@@ -49,7 +49,7 @@ python3 bin/cluster_secret_data.py \
 
 ## In-Line Transit Decryption via PayloadProcessor
 
-The `projects.vault.lib.engines.payload.PayloadProcessor` manages transparent decryption of sensitive values committed to version control. This prevents plain-text secret exposure in Git.
+The `projects.vault_controller.lib.engines.payload.PayloadProcessor` manages transparent decryption of sensitive values committed to version control. This prevents plain-text secret exposure in Git.
 
 When the controller detects values prefixed with `vault:v1:`, it routes the payload through the Transit engine before final delivery to the target KV engine.
 
@@ -70,7 +70,7 @@ api_paths:
 
 ### Decryption Sequence
 1.  **Load**: `PayloadProcessor` identifies `transit_engine` and `transit_key` metadata.
-2.  **Decrypt**: The controller calls `projects.vault.lib.engines.transit.TransitEngine.decrypt()` for all ciphertext strings.
+2.  **Decrypt**: The controller calls `projects.vault_controller.lib.engines.transit.TransitEngine.decrypt()` for all ciphertext strings.
 3.  **Deliver**: The decrypted payload is POSTed to the target KV engine (e.g., `v1/cloud-boot-app/data/mysql`).
 4.  **Volatile Memory**: Plain-text secrets exist only in the execution environment's memory and are never written to disk.
 

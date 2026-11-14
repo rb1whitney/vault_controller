@@ -59,40 +59,40 @@ Once generated, proceed to the encryption workflow below to secure the results f
 
 ## Execution: Encrypting Local Payloads
 
-Use the `bin/cluster_encrypt_ops.py` tool. This script utilizes `projects.vault.lib.engines.transit` to perform cryptographic operations.
+Use the `vault-ctl secrets encrypt` command. This tool utilizes `projects.vault_controller.lib.engines.payload_processor` to perform cryptographic operations.
 
 ### Step 1: Configure Unified Auth
 ```bash
 export VAULT_AUTH_TYPE="token"
-export VAULT_AUTH_PRINCIPAL="admin"
 export VAULT_AUTH_SECRET="your-access-token"
 ```
 
 ### Step 2: Run Encryption Command
 ```bash
-python3 bin/cluster_encrypt_ops.py --name example_vault encrypt \
-  --path ./projects/vault/config/example_vault/cloud-boot-app/kv/mysql-credentials.yaml \
-  --transit-key "vault-admin-transit-key"
+python3 projects/vault_controller/bin/vault_ctl.py secrets encrypt \
+  --name example_vault \
+  --path ./projects/vault_controller/config/example_vault/cloud-boot-app/kv/mysql-credentials.yaml \
+  --transit-key "namespace-encryption"
 ```
 
 The encryption logic:
 1.  Loads the YAML manifest.
-2.  Base64-encodes sensitive fields within `api_payload`.
-3.  Calls the Transit engine via `projects.vault.lib.core.client.VaultClient`.
+2.  Identifies fields to encrypt via `transit_encoded_keys` (or prompts for them).
+3.  Calls the Transit engine via `hvac` native methods.
 4.  Overwrites the local file with encrypted ciphertext.
-5.  Injects required metadata (`transit_engine`, `transit_key`) for the deployment controller.
+5.  Ensures metadata (`transit_engine`, `transit_key`) is present for the deployment controller.
 
 ---
 
 ## Deployment Logic
 
-The `bin/cluster_secret_data.py` controller detects the `transit_engine` metadata and invokes the `PayloadProcessor` to perform in-line decryption during the reconciliation loop.
+The `vault-ctl secrets deploy` command detects the `transit_engine` metadata and invokes the `PayloadProcessor` to perform in-line decryption during the reconciliation loop.
 
 ```bash
 # Transparently decrypts and deploys secrets
-python3 bin/cluster_secret_data.py \
+python3 projects/vault_controller/bin/vault_ctl.py secrets deploy \
   --name example_vault \
-  --path ./projects/vault/config/example_vault/cloud-boot-app/kv/
+  --path ./projects/vault_controller/config/example_vault/cloud-boot-app/kv/
 ```
 
 Verification of the encryption/decryption lifecycle is handled by `pytest`:

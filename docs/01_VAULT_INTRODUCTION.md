@@ -86,7 +86,7 @@ payload = {
     "api_action": "post",
     "api_payload": { "type": "kv" }
 }
-# Direct API orchestration via projects.vault.lib.core.client.
+# Direct API orchestration via projects.vault_controller.lib.core.client.
 # Each team manages their own independent YAML payloads.
 client.submit([payload])
 ```
@@ -154,7 +154,7 @@ api_paths:
 The `LocalVaultClient` serves as the high-level executor. It is a "dumb" pipe that manages request orchestration while delegating low-level HTTP mechanics to a specialized `Adapter`.
 
 ```python
-from projects.vault.lib.core.client import LocalVaultClient
+from projects.vault_controller.lib.core.client import LocalVaultClient
 
 # Initialize the stateless client with a clean interface
 client = LocalVaultClient(

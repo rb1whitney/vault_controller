@@ -16,12 +16,12 @@ class LDAPAuthStrategy(BaseAuthStrategy):
         username = os.environ["VAULT_AUTH_PRINCIPAL"]
         password = os.environ["VAULT_AUTH_SECRET"]
 
-        api_path = f"v1/auth/{mount_point}/login/{username}"
-        payload = {"password": password}
-
-        response = adapter.request("post", api_path, json=payload)
-        adapter.token = response.json()["auth"]["client_token"]
-        self.logger.info(f"Authenticated as {username} using unified LDAP strategy")
+        self.logger.info(f"Authenticating as {username} using hvac LDAP strategy")
+        adapter.auth.ldap.login(
+            username=username,
+            password=password,
+            mount_point=mount_point,
+        )
 
 
 class AppRoleAuthStrategy(BaseAuthStrategy):
@@ -31,9 +31,9 @@ class AppRoleAuthStrategy(BaseAuthStrategy):
         role_id = os.environ["VAULT_AUTH_PRINCIPAL"]
         secret_id = os.environ["VAULT_AUTH_SECRET"]
 
-        api_path = f"v1/auth/{mount_point}/login"
-        payload = {"role_id": role_id, "secret_id": secret_id}
-
-        response = adapter.request("post", api_path, json=payload)
-        adapter.token = response.json()["auth"]["client_token"]
-        self.logger.info(f"Authenticated role {role_id} using unified AppRole strategy")
+        self.logger.info(f"Authenticating role {role_id} using hvac AppRole strategy")
+        adapter.auth.approle.login(
+            role_id=role_id,
+            secret_id=secret_id,
+            mount_point=mount_point,
+        )

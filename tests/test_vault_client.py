@@ -1,9 +1,7 @@
-import json
-
 import pytest
 from unittest.mock import MagicMock, patch
 
-from projects.vault.lib.core.client import LocalVaultClient
+from projects.vault_controller.lib.core.client import LocalVaultClient
 
 
 @pytest.fixture
@@ -13,7 +11,7 @@ def mock_logger():
 
 @pytest.fixture
 def vault_client(mock_logger):
-    with patch("projects.vault.lib.core.client.VaultClientAdapter") as mock_adapter:
+    with patch("projects.vault_controller.lib.core.client.VaultClientAdapter") as mock_adapter:
         client = LocalVaultClient("http://localhost:8200", mock_logger)
         client.adapter = mock_adapter.return_value
         return client

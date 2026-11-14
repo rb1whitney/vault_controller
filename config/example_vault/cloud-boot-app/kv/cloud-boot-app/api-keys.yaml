@@ -4,8 +4,8 @@ api_paths:
   api_action: post
   api_payload:
     data:
-      stripe_key: "vault:v1:S2t6e_sk_test_51...2026"
-      twilio_sid: "vault:v1:T2w_AC...2026"
-      sendgrid_token: "vault:v1:S2g_SG...2026"
+      stripe_key: "vault:v1:K68warkqeZVkfMhDfdggu/CoN89N7gO2B7TvtSqLC5Deoo7Sn7KkbkwVarOXonD9SJ5lVSjJm2aMyw=="
+      twilio_sid: "vault:v1:9YiSj3JI9kXH23BSSNPzCrfUt74vr++zpDlotlO1dN+7rVuyzfvWzDFjAJAF8K2T6DWbDJFbwyJ2Gw31"
+      sendgrid_token: "vault:v1:55UthJHzyMKniTFQfLtBvnV8ttKtUz1sT73q9briG96wD6/dA+CErMjLg8fMKfOZLlK9IqQFWg=="
   transit_engine: "transit"
   transit_key: "vault-admin-transit-key"

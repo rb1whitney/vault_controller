@@ -11,9 +11,9 @@ def get_logger(name="vault_automation", log_level="INFO"):
         formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
 
         # File Handler
-        fh = logging.FileHandler("vault_automation.log")
-        fh.setFormatter(formatter)
-        logger.addHandler(fh)
+        # fh = logging.FileHandler("vault_automation.log")
+        # fh.setFormatter(formatter)
+        # logger.addHandler(fh)
 
         # Console Handler
         ch = logging.StreamHandler(sys.stdout)

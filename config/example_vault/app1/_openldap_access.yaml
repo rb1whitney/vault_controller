@@ -4,7 +4,8 @@ api_paths:
 - api_path: v1/auth/ldap/groups/vault-app1-admin
   api_payload:
     policies:
-    - app1-admin
+    - app1-admin-writer
+    - app1-admin-reader
     - app1-team-secrets-writer
     - app1-team-secrets-reader
     - app1-authenticator-writer
@@ -15,7 +16,8 @@ api_paths:
 - api_path: v1/auth/ldap/groups/vault-app1-user
   api_payload:
     policies:
-    - app1-admin
+    - app1-admin-writer
+    - app1-admin-reader
     - vault-app1-writer
     - vault-app1-reader
     - transit-encrypt-global
