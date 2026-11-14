@@ -1,0 +1,7 @@
+requests
+PyYAML
+urllib3
+hvac
+pydantic
+typer
+rich

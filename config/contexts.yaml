@@ -1,0 +1,13 @@
+clusters:
+  example_vault:
+    servers:
+      - localhost
+    api_port: "8200"
+    api_url: "localhost"
+    api_protocol: "http"
+    config_env: "example_vault"
+    key_holders:
+      - admin@example.com
+    key_threshold: 1
+    key_encrypt: false
+    recovery_key: false

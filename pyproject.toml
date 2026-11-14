@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vault-controller"
+version = "0.1.0"
+authors = [
+  { name="Richard Whitney" },
+]
+description = "A comprehensive Vault controller for managing secrets, auth methods, and cluster lifecycle."
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "requests",
+    "PyYAML",
+    "urllib3",
+    "hvac",
+    "pydantic",
+    "typer",
+    "rich",
+]
+
+[project.scripts]
+vault-ctl = "bin.vault_ctl:app"
+
+[tool.setuptools.packages.find]
+include = ["bin*", "lib*"]
+
+[project.urls]
+"Homepage" = "https://github.com/rb1whitney/vault_controller"
+"Bug Tracker" = "https://github.com/rb1whitney/vault_controller/issues"
+
+[tool.ruff]
+line-length = 88
+target-version = "py38"
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q"
+pythonpath = ["."]
+testpaths = [
+    "tests",
+]

@@ -1,0 +1,36 @@
+# Enables and configures authentication methods (e.g., AppRole, LDAP, Kubernetes).
+
+api_paths:
+- api_path: v1/sys/auth/ldap
+  api_payload:
+    type: ldap
+    description: Local-OpenLDAP-Access
+  api_action: post
+- api_path: v1/auth/ldap/config
+  api_payload:
+    binddn: ''
+    case_sensitive_names: false
+    deny_null_bind: true
+    discoverdn: false
+    certificate: ''
+    groupattr: cn
+    groupdn: ou=groups,dc=corp,dc=org
+    groupfilter: (|(memberUid={{.Username}})(member={{.UserDN}})(uniqueMember={{.UserDN}}))
+    insecure_tls: false
+    starttls: true
+    token_bound_cidrs: []
+    token_max_ttl: 28800
+    token_no_default_policy: false
+    token_num_uses: 0
+    token_policies:
+    - namespace-encryption
+    token_period: 0
+    token_ttl: 3600
+    token_type: default
+    upndomain: ''
+    url: ldaps://127.0.0.1
+    use_pre111_group_cn_behavior: false
+    use_token_groups: false
+    userdn: ou=people,dc=corp,dc=org
+    userattr: cn
+  api_action: post

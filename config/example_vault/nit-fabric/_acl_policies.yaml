@@ -1,0 +1,11 @@
+# Defines ACL policies for the NIT-Fabric Discovery Engine.
+# Grants access to cloud credentials and transit encryption for policy validation.
+api_paths:
+- api_path: v1/sys/policy/nit-fabric-governor
+  api_action: post
+  api_payload:
+    path:
+      "nit-fabric/data/*":
+        capabilities: ["read", "list"]
+      "nit-fabric-transit/*":
+        capabilities: ["update"]
