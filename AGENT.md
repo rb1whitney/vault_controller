@@ -62,17 +62,18 @@ This repository implements **declarative Day-2 Vault GitOps** backed by Python `
 1. Author or edit YAML payloads under `config/<env>/<namespace>/` (ensure `_namespace` matches the directory and schema matches `VaultPayload`).
 2. Validate schema and guardrails:
    ```bash
-   vault-ctl secrets validate --path config/example_vault
+   vault-ctl secrets validate --directory config/example_vault --allow-file-regex "**/*.yaml" --scheme namespaces
    ```
 3. Encrypt plaintext values via Transit before committing:
    ```bash
-   vault-ctl secrets encrypt --path <target.yaml>
+   vault-ctl secrets encrypt --name <context> --path <target.yaml>
    ```
    Verify encrypted fields carry the `vault:v1:` prefix.
-4. Deploy or sync to Vault:
+4. Deploy, list, or sync to Vault (for KV-v2 mounts, pass `metadata/`):
    ```bash
    vault-ctl secrets deploy --name <context> --path <target.yaml>
-   vault-ctl secrets sync --name <context> --path <dir>
+   vault-ctl secrets list --name <context> --mount <kv_mount> --path metadata/
+   vault-ctl secrets sync --name <context> --source-kv <kv_mount> --source-path metadata/ --file-path <out_dir>
    ```
 
 ### B. Cluster Lifecycle & Backup
@@ -88,9 +89,12 @@ This repository implements **declarative Day-2 Vault GitOps** backed by Python `
   vault-ctl cluster rekey update --name <context>
   vault-ctl cluster rekey cancel --name <context>
   ```
-- **Raft Snapshot Backup**:
+- **KV JSON Backup (LDAP-only) vs Raft Snapshots**:
   ```bash
-  vault-ctl backup --name <context>
+  # KV-path JSON backup/restore (requires LDAP_USERNAME)
+  vault-ctl backup backup <vault_path> <context>
+  # Full Raft integrated storage snapshot
+  vault operator raft snapshot save <snapshot.snap>
   ```
 
 ### C. Credential Generation
@@ -117,3 +121,6 @@ All tests and lint checks must pass without skipped or relaxed assertions.
 2. **Transformation Order**: `PayloadProcessor` pipeline order is fixed (`Unwrap -> Transit -> Base64 -> Policy Transform`). Do not reorder stages.
 3. **Pydantic Aliasing**: YAML files use `_namespace` (leading underscore); `VaultPayload` aliases `_namespace` to `namespace` internally.
 4. **Python Path**: `pyproject.toml` sets `pythonpath = ["."]` so `lib.*` and `bin.*` imports resolve cleanly under `pytest` and standalone clones.
+5. **Transit Keys Are Cluster-Local**: Ciphertexts (`vault:v1:...`) encrypted in one Vault cluster cannot be decrypted in a fresh cluster unless the same Transit key is replicated or restored.
+6. **KV-v2 Listing/Sync**: `secrets list` and `secrets sync` require `--path metadata/` / `--source-path metadata/` on KV-v2 engines; default `/` is rejected by Vault.
+7. **Branch Protection**: `main` is protected (`test-and-lint` CI required, direct pushes blocked). Always work on a feature branch and open a PR.
