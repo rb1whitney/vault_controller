@@ -26,7 +26,7 @@ class VaultPayload(BaseModel):
     namespace: Optional[str] = Field(None, alias="_namespace")
     api_paths: List[ApiObject]
 
-    @root_validator(pre=False)
+    @root_validator(pre=False, skip_on_failure=True)
     def validate_ttl(cls, values):
         api_paths = values.get("api_paths", [])
         for obj in api_paths:
