@@ -23,6 +23,6 @@ Teams can extend available generators by adding entries to the `rules` mapping:
 ### 3. Generate -> Encrypt -> Deploy Pipeline
 To maintain the security boundary, generated secrets MUST be Transit-encrypted before committing:
 
-1. **Generate**: `vault-ctl generate --template app.template.yaml --output app.yaml`
-2. **Encrypt**: `vault-ctl secrets encrypt --path app.yaml`
-3. **Validate & Deploy**: `vault-ctl secrets validate --path app.yaml && vault-ctl secrets deploy --name example_vault --path app.yaml`
+1. **Generate**: `vault-ctl generate --name example_vault --template app.template.yaml --output app.yaml`
+2. **Encrypt**: `vault-ctl secrets encrypt --name example_vault --path app.yaml`
+3. **Validate & Deploy**: `vault-ctl secrets validate --directory . --allow-file-regex "app.yaml" --scheme secret && vault-ctl secrets deploy --name example_vault --path app.yaml`

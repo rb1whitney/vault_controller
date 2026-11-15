@@ -19,10 +19,10 @@ description: Contract for generating credentials from templates via vault-ctl ge
 vault-ctl generate --name <context> --template <template.yaml> --output <output.yaml>
 
 # 2. Immediately Transit-encrypt before anything touches Git
-vault-ctl secrets encrypt --path <output.yaml>
+vault-ctl secrets encrypt --name <context> --path <output.yaml>
 
 # 3. Validate and deploy
-vault-ctl secrets validate --path <output.yaml>
+vault-ctl secrets validate --directory <output_dir> --allow-file-regex "<output.yaml>" --scheme secret
 vault-ctl secrets deploy --name <context> --path <output.yaml>
 ```
 
@@ -31,7 +31,7 @@ vault-ctl secrets deploy --name <context> --path <output.yaml>
 - **DO NOT** run cloud-CLI rules (`aws`, `gcloud`) without verifying the active CLI account/project is non-production or the intended target.
 
 ## Verification
-- Output file contains `vault:v1:` ciphertexts and passes `vault-ctl secrets validate --path <output.yaml>`.
+- Output file contains `vault:v1:` ciphertexts and passes `vault-ctl secrets validate --directory <output_dir> --allow-file-regex "<output.yaml>" --scheme secret`.
 
 ## References
 - `references/generation-workflow.md` — Template syntax and `config/generation_rules.yaml` structure.

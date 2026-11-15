@@ -16,14 +16,15 @@ description: Contract for authoring, validating, Transit-encrypting, and deployi
 ## Rapid Workflow
 ```bash
 # 1. Validate schema & guardrails before network calls
-vault-ctl secrets validate --path <file_or_dir>
+vault-ctl secrets validate --directory <dir> --allow-file-regex "*.yaml" --scheme <namespaces|admin|secret>
 
 # 2. Transit-encrypt plaintext fields in place
-vault-ctl secrets encrypt --path <file_or_dir>
+vault-ctl secrets encrypt --name <context> --path <file_or_dir>
 
-# 3. Verify vault:v1: ciphertext is present, then deploy/sync
+# 3. Verify vault:v1: ciphertext is present, then deploy/list/sync (use metadata/ for KV-v2)
 vault-ctl secrets deploy --name <context> --path <file>
-vault-ctl secrets sync --name <context> --path <dir>
+vault-ctl secrets list --name <context> --mount <kv_mount> --path metadata/
+vault-ctl secrets sync --name <context> --source-kv <kv_mount> --source-path metadata/ --file-path <out_dir>
 ```
 
 ## Hard Don'ts
@@ -34,7 +35,7 @@ vault-ctl secrets sync --name <context> --path <dir>
 - **DO NOT** reorder `PayloadProcessor` stages (`Unwrap -> Transit -> Base64 -> Policy Transform`).
 
 ## Verification
-- `vault-ctl secrets validate --path <file_or_dir>` exits `0`.
+- `vault-ctl secrets validate --directory <dir> --allow-file-regex "*.yaml" --scheme <scheme>` exits `0`.
 - `grep -n "vault:v1:" <target.yaml>` confirms sensitive fields are encrypted before `git add`.
 
 ## References

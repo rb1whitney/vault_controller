@@ -27,14 +27,15 @@ vault-ctl cluster rekey init --name <context>
 vault-ctl cluster rekey update --name <context>
 vault-ctl cluster rekey cancel --name <context>
 
-# 4. Raft Snapshot Backup
-vault-ctl backup --name <context>
+# 4. KV JSON Backup (LDAP-only) vs Raft Snapshot
+vault-ctl backup backup <vault_path> <context>
+vault operator raft snapshot save <snapshot.snap>
 ```
 
 ## Hard Don'ts
-- **DO NOT** run raw `vault operator ...` shell commands when `vault-ctl` supports the operation.
+- **DO NOT** run raw `vault operator ...` shell commands when `vault-ctl` supports the operation (`raft snapshot save` is the exception since `vault-ctl backup` only exports KV JSON via LDAP).
 - **DO NOT** log or commit root tokens, unseal keys, recovery keys, or snapshot artifacts.
-- **DO NOT** start a rekey without checking `recovery_key` in `config/contexts.yaml` and verifying quorum via `cluster status`.
+- **DO NOT** start a rekey without checking `recovery_key` in `config/contexts.yaml` and verifying quorum via `cluster status`. Note `cluster rekey init` already cancels any stale rekey attempt; standalone `cluster rekey cancel` may fail on Vault `v2.0.0` if no cancellable state is active.
 - **DO NOT** disable TLS verification to bypass cert errors.
 
 ## Verification
