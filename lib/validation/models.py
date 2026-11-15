@@ -1,6 +1,8 @@
-from typing import List, Dict, Any, Optional
-from pydantic import BaseModel, Field, validator, root_validator
 import re
+from typing import Any, Dict, List, Optional
+
+from pydantic import BaseModel, Field, root_validator, validator
+
 
 class ApiObject(BaseModel):
     api_path: str
@@ -24,7 +26,7 @@ class VaultPayload(BaseModel):
     namespace: Optional[str] = Field(None, alias="_namespace")
     api_paths: List[ApiObject]
 
-    @root_validator(pre=False)
+    @root_validator(pre=False, skip_on_failure=True)
     def validate_ttl(cls, values):
         api_paths = values.get("api_paths", [])
         for obj in api_paths:

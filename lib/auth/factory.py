@@ -1,9 +1,11 @@
-from .standard import TokenAuthStrategy, LDAPAuthStrategy, AppRoleAuthStrategy
+from typing import ClassVar
+
 from .cloud import AWSAuthStrategy, GCPAuthStrategy
+from .standard import AppRoleAuthStrategy, LDAPAuthStrategy, TokenAuthStrategy
 
 
 class AuthStrategyFactory:
-    _strategies = {
+    _strategies: ClassVar[dict] = {
         "token": TokenAuthStrategy,
         "ldap": LDAPAuthStrategy,
         "approle": AppRoleAuthStrategy,

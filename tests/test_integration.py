@@ -51,7 +51,7 @@ def run_secrets_deploy(args, env):
     """
     vault_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     script_path = os.path.join(vault_root, "bin/vault_ctl.py")
-    cmd = [sys.executable, script_path, "secrets", "deploy", "--name", "example_vault", "--auth-method", "token"] + args
+    cmd = [sys.executable, script_path, "secrets", "deploy", "--name", "example_vault", "--auth-method", "token", *args]
     
     # Merge current environment to ensure PYTHONPATH and other settings are preserved
     full_env = os.environ.copy()
@@ -59,7 +59,7 @@ def run_secrets_deploy(args, env):
     # Ensure repo root is in PYTHONPATH
     full_env["PYTHONPATH"] = vault_root + (":" + full_env.get("PYTHONPATH", "") if full_env.get("PYTHONPATH") else "")
     
-    return subprocess.run(cmd, env=full_env, capture_output=True, text=True, cwd=vault_root)
+    return subprocess.run(cmd, env=full_env, capture_output=True, text=True, cwd=vault_root, check=False)
 
 
 def test_spinning_up_cluster_admin_config(vault_server):
@@ -90,7 +90,7 @@ def test_spinning_up_cluster_app1_config(vault_server):
     # 3. Vault transit key restores
     for key_name in ("app1-transit-key", "vault-admin-transit-key"):
         fixture_path = os.path.join(vault_root, "tests/fixtures", key_name)
-        with open(fixture_path, "r") as f:
+        with open(fixture_path) as f:
             backup_val = f.read().strip()
 
         cmd_transit = [
@@ -100,7 +100,7 @@ def test_spinning_up_cluster_app1_config(vault_server):
             f"backup={backup_val}",
             "force=true",
         ]
-        res3 = subprocess.run(cmd_transit, env=env, capture_output=True, text=True)
+        res3 = subprocess.run(cmd_transit, env=env, capture_output=True, text=True, check=False)
         assert res3.returncode == 0, f"Transit restore failed for {key_name}: {res3.stderr}"
 
     # 4. App1 kv
@@ -157,7 +157,7 @@ def test_logging_into_cluster(vault_server):
     # Parse password from tests/fixtures/ldap.ldif
     password = None
     ldap_fixture = os.path.join(vault_root, "tests/fixtures/ldap.ldif")
-    with open(ldap_fixture, "r") as f:
+    with open(ldap_fixture) as f:
         lines = f.readlines()
         for i, line in enumerate(lines):
             if line.startswith(f"uid: {username}"):
@@ -171,6 +171,7 @@ def test_logging_into_cluster(vault_server):
     # Verify token login works against the ephemeral cluster via LocalVaultClient
     import logging
     from unittest.mock import patch
+
     from lib.core.client import LocalVaultClient
     with patch.dict(os.environ, {"VAULT_AUTH_TYPE": "token", "VAULT_AUTH_SECRET": env["VAULT_AUTH_SECRET"]}):
         client = LocalVaultClient(env["VAULT_ADDR"], logging.getLogger("test_login"))

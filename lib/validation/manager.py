@@ -1,6 +1,8 @@
 import os
+
 import yaml
 from pydantic import ValidationError
+
 from .models import VaultPayload
 
 
@@ -21,7 +23,7 @@ class ValidationManager:
         if files:
             for f in files:
                 try:
-                    with open(f, "r") as stream:
+                    with open(f) as stream:
                         data = yaml.safe_load(stream)
                     model = VaultPayload(**data)
                     errors.extend(self._run_logic_checks(f, model))

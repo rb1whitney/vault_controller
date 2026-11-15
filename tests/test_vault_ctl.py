@@ -1,6 +1,7 @@
+from unittest.mock import MagicMock, patch
+
 import pytest
 from typer.testing import CliRunner
-from unittest.mock import MagicMock, patch
 
 from bin.vault_ctl import app
 

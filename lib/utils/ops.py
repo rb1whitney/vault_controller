@@ -6,6 +6,7 @@ import re
 import shlex
 import subprocess
 import time
+
 import yaml
 
 from lib.core import command as secure_cmd
@@ -15,13 +16,14 @@ from lib.utils import crypto as vault_crypto
 from lib.validation.models import validate_cluster_name, validate_path
 
 SAFE_PARAM_RE = re.compile(r"^[a-zA-Z0-9_.-]+$")
+logger = logging.getLogger(__name__)
 
 class SecretGenerator:
     """
     Orchestrates secret generation based on an external rules engine.
     """
     def __init__(self, rules_path, logger):
-        with open(rules_path, "r") as f:
+        with open(rules_path) as f:
             self.rules_config = yaml.safe_load(f)
         self.logger = logger
 
@@ -58,13 +60,13 @@ class SecretGenerator:
             return result.stdout.strip()
         except subprocess.CalledProcessError as e:
             self.logger.error(f"Generation failed: {e.stderr}")
-            raise e
+            raise
 
     def process_template(self, template_path, output_path):
         """Parses a template and replaces placeholders with generated secrets."""
         if ".." in os.path.normpath(output_path).split(os.sep):
             raise ValueError(f"Path traversal not allowed in output path: {output_path}")
-        with open(template_path, "r") as f:
+        with open(template_path) as f:
             content = f.read()
 
         pattern = re.compile(r"\{\{\s*(\w+)\((.*?)\)\s*\}\}")
@@ -171,7 +173,7 @@ def login(cluster_config, vault_ldap, vault_namespace):
     ldap_user = os.environ.get("LDAP_USERNAME")
     if not ldap_user:
         msg = "LDAP_USERNAME environment variable must be set"
-        logging.error(msg)
+        logger.error(msg)
         raise VaultError(message=msg)
 
     cmd = [
@@ -257,16 +259,16 @@ def list_secrets_func(client, mount_name, mount_path):
     mount_secrets = []
     mount_path = mount_path.replace('//','')    
     if mount_path.endswith('/'):
-        api_path = "/v1/{0}/{1}".format(mount_name, mount_path)
+        api_path = f"/v1/{mount_name}/{mount_path}"
         secret_paths = client.list(api_path)['data']['keys']
         for secret_path in secret_paths:
             if '/' in secret_path:
-                new_mount_path = "{0}{1}".format(mount_path, secret_path)
+                new_mount_path = f"{mount_path}{secret_path}"
                 results = list_secrets_func(client, mount_name, new_mount_path)
                 mount_secrets.extend(results)
             else:
-                path_suffix = mount_path if mount_path.startswith('/') else "/{0}".format(mount_path)
-                mount_secrets.append("{0}{1}".format(path_suffix, secret_path))
+                path_suffix = mount_path if mount_path.startswith('/') else f"/{mount_path}"
+                mount_secrets.append(f"{path_suffix}{secret_path}")
     else:
         mount_secrets.append(mount_path)
     return mount_secrets
@@ -309,8 +311,9 @@ def encrypt_api_payload(client, payload, older_json_payload, transit_encrypt_api
                     transit_payload = {'plaintext': base64_value}
                     encrypted_data = client.post(transit_encrypt_api_path, transit_payload)
                     if 'error' in encrypted_data:
-                        msg = "Vault unable to parse {0} at api_path: {2} with error: {1}".format(
-                            key, encrypted_data['error'], api_path
+                        msg = (
+                            f"Vault unable to parse {key} at api_path: {api_path} "
+                            f"with error: {encrypted_data['error']}"
                         )
                         client.logger.error(msg)
                         raise VaultError(message=msg)
@@ -324,7 +327,7 @@ def encrypt_api_payload(client, payload, older_json_payload, transit_encrypt_api
                 else:
                     encrypted_payload[key] = encrypted_payload_value
                 
-                if(enable_plaintext_secrets == 'True' and "ENC(" in str(older_value)) and not current_value == 'changeme':
+                if (enable_plaintext_secrets == 'True' and "ENC(" in str(older_value)) and current_value != 'changeme':
                     cleaned_jasypt_value = str(older_value).replace('ENC(','').replace(')','')
                     
                     # Safe isolated subprocess environment execution (no parent process environment pollution)
@@ -336,7 +339,7 @@ def encrypt_api_payload(client, payload, older_json_payload, transit_encrypt_api
                     base64_value = str(base64.b64encode(decrypted_secret.encode('UTF-8')), 'UTF-8')
                     transit_payload = {'plaintext': base64_value}
                     encrypted_data = client.post(transit_encrypt_api_path, transit_payload)
-                    plaintext_key = "{}_plaintext".format(key)
+                    plaintext_key = f"{key}_plaintext"
                     encrypted_payload[plaintext_key] = encrypted_data['data']['ciphertext']
 
     return encrypted_payload
@@ -355,8 +358,8 @@ def get_transit_encoded_keys(value, key_path=""):
 def _process_yaml_payloads(path, client, callback):
     yaml_files = get_yaml_files(path)
     for yaml_file in yaml_files:
-        client.logger.debug("Processing {0}".format(yaml_file))
-        with open(yaml_file, "r") as f:
+        client.logger.debug(f"Processing {yaml_file}")
+        with open(yaml_file) as f:
             yaml_payload = yaml.safe_load(f)
 
         modified = False
@@ -371,9 +374,7 @@ def _process_yaml_payloads(path, client, callback):
 # Encryption / Decryption / Decode
 def validate_batch_result(client, batch_result, key, path):
     if "error" in batch_result:
-        msg = "Vault unable to parse {0} at api_path: {1} with error: {2}".format(
-            key, path, batch_result["error"]
-        )
+        msg = f"Vault unable to parse {key} at api_path: {path} with error: {batch_result['error']}"
         client.logger.error(msg)
         raise VaultError(message=msg)
 
@@ -382,7 +383,7 @@ def get_yaml_files(path):
     if os.path.isdir(path):
         for root, dirs, files in os.walk(path):
             for file in files:
-                if file.endswith(".yaml") or file.endswith(".yml"):
+                if file.endswith((".yaml", ".yml")):
                     yaml_files.append(os.path.join(root, file))
     else:
         yaml_files.append(path)
@@ -391,7 +392,7 @@ def get_yaml_files(path):
 
 def handle_decode(client, path):
     def decode_callback(api_object):
-        if "decode_base64_keys" in api_object and api_object["decode_base64_keys"]:
+        if api_object.get("decode_base64_keys"):
             api_payload = api_object["api_payload"]
             for key_name in api_object["decode_base64_keys"]:
                 decrypt_value = _get_nested_value(api_payload, key_name)
@@ -445,16 +446,14 @@ def _collect_leaf_paths(data, prefix=""):
 
 def handle_decrypt(client, path, transit_engine="transit", transit_key="namespace-encryption", transit_context=""):
     def decrypt_callback(api_object):
-        if "transit_encoded_keys" in api_object and api_object["transit_encoded_keys"]:
+        if api_object.get("transit_encoded_keys"):
             transit_secret_engine = (
                 api_object.get("transit_secret_engine")
                 or api_object.get("transit_engine")
                 or transit_engine
             )
             tk = api_object.get("transit_key", transit_key)
-            transit_api_path = "v1/{0}/decrypt/{1}".format(
-                transit_secret_engine, tk
-            )
+            transit_api_path = f"v1/{transit_secret_engine}/decrypt/{tk}"
             for key_name in api_object["transit_encoded_keys"]:
                 val = _get_nested_value(api_object["api_payload"], key_name)
                 ctx = api_object.get("transit_context", transit_context) if ("transit_context" in api_object or transit_context != "") else None
@@ -485,7 +484,7 @@ def handle_decrypt(client, path, transit_engine="transit", transit_key="namespac
 
 def handle_encrypt(client, path, transit_engine="transit", transit_key="namespace-encryption", transit_context=""):
     def encrypt_callback(api_object):
-        if "transit_encoded_keys" in api_object and api_object["transit_encoded_keys"]:
+        if api_object.get("transit_encoded_keys"):
             # Perform decrypt check first as in legacy logic
             transit_secret_engine = (
                 api_object.get("transit_secret_engine")
@@ -493,9 +492,7 @@ def handle_encrypt(client, path, transit_engine="transit", transit_key="namespac
                 or transit_engine
             )
             tk = api_object.get("transit_key", transit_key)
-            transit_api_path = "v1/{0}/decrypt/{1}".format(
-                transit_secret_engine, tk
-            )
+            transit_api_path = f"v1/{transit_secret_engine}/decrypt/{tk}"
             for key_name in api_object["transit_encoded_keys"]:
                 val = _get_nested_value(api_object["api_payload"], key_name)
                 ctx = api_object.get("transit_context", transit_context) if ("transit_context" in api_object or transit_context != "") else None
@@ -551,9 +548,7 @@ def handle_encrypt(client, path, transit_engine="transit", transit_key="namespac
                 data_to_encrypt.append(encrypt_payload)
 
         transit_payload = {"batch_input": data_to_encrypt}
-        transit_api_path = "v1/{0}/encrypt/{1}".format(
-            transit_engine, transit_key
-        )
+        transit_api_path = f"v1/{transit_engine}/encrypt/{transit_key}"
         encrypted_payload = client.post(transit_api_path, transit_payload)
 
         batch_results = encrypted_payload["data"]["batch_results"]
@@ -585,7 +580,7 @@ def handle_encrypt(client, path, transit_engine="transit", transit_key="namespac
 def handle_encrypt_string(client, string, encode_string="True", transit_engine="transit", transit_key="namespace-encryption", transit_context=""):
     encrypt_payload = {}
     encrypt_value = string
-    if "True" == encode_string:
+    if encode_string == "True":
         client.logger.debug("Encoding string into base64 value")
         encrypt_value = str(base64.b64encode(encrypt_value.encode("UTF-8")), "UTF-8")
     encrypt_payload["plaintext"] = encrypt_value
@@ -593,8 +588,8 @@ def handle_encrypt_string(client, string, encode_string="True", transit_engine="
         encrypt_payload["context"] = transit_context
 
     transit_payload = {"batch_input": [encrypt_payload]}
-    transit_api_path = "v1/{0}/encrypt/{1}".format(transit_engine, transit_key)
+    transit_api_path = f"v1/{transit_engine}/encrypt/{transit_key}"
     encrypted_payload = client.post(transit_api_path, transit_payload)
     cipher = encrypted_payload["data"]["batch_results"][0]["ciphertext"]
-    client.logger.info("Encrypted String: {0}".format(cipher))
+    client.logger.info(f"Encrypted String: {cipher}")
     return cipher

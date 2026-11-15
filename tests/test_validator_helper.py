@@ -1,6 +1,9 @@
-import pytest
 from unittest.mock import MagicMock, patch
+
+import pytest
+
 from lib.validation.manager import ValidationManager
+
 
 @pytest.fixture
 def mock_logger():
@@ -34,10 +37,8 @@ def test_prohibit_read_write_policy(mock_yaml_load, mock_logger):
             }
         }]
     }
-    with patch("builtins.open", MagicMock()):
-        # Mocking namespace dir check
-        with patch.object(validator, "_validate_namespace_dir", return_value=[]):
-            errors = validator.validate("dev", files=["test.yaml"])
+    with patch("builtins.open", MagicMock()), patch.object(validator, "_validate_namespace_dir", return_value=[]):
+        errors = validator.validate("dev", files=["test.yaml"])
     assert len(errors) > 0
     assert any("mixes Read/Write" in e for e in errors)
 
@@ -57,9 +58,8 @@ def test_prohibit_long_lived_tokens(mock_yaml_load, mock_logger):
             }
         }]
     }
-    with patch("builtins.open", MagicMock()):
-        with patch.object(validator, "_validate_namespace_dir", return_value=[]):
-            errors = validator.validate("dev", files=["test.yaml"])
+    with patch("builtins.open", MagicMock()), patch.object(validator, "_validate_namespace_dir", return_value=[]):
+        errors = validator.validate("dev", files=["test.yaml"])
     assert len(errors) > 0
     assert any("exceeds 1h limit" in e for e in errors)
 

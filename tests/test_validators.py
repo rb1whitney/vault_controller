@@ -1,9 +1,11 @@
 import pytest
+
 from lib.validation.models import (
     validate_cluster_name,
     validate_namespace,
     validate_path,
 )
+
 
 def test_validate_cluster_name_valid():
     assert validate_cluster_name("prod-cluster_01") == "prod-cluster_01"

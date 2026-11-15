@@ -1,7 +1,9 @@
-from typing import List, Dict, Optional
-import yaml
 import os
 from dataclasses import dataclass
+from typing import Dict, List, Optional
+
+import yaml
+
 
 @dataclass
 class ClusterConfig:
@@ -42,7 +44,7 @@ class VaultSettings:
         if not path:
             path = os.path.join(os.path.dirname(__file__), "../../config/contexts.yaml")
         
-        with open(path, "r") as f:
+        with open(path) as f:
             data = yaml.safe_load(f)
         
         clusters = {}

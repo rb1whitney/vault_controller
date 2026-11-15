@@ -8,13 +8,13 @@ def convert_pgp_key(pgp_key):
         r"-----BEGIN PGP PUBLIC KEY BLOCK-----.*?\r?\n\r?\n",
         "",
         pgp_key,
-        flags=re.S,
+        flags=re.DOTALL,
     )
     cleaned = re.sub(
         r"\r?\n=[A-Za-z0-9+/=]{4}\r?\n-----END PGP PUBLIC KEY BLOCK-----.*",
         "",
         cleaned,
-        flags=re.S,
+        flags=re.DOTALL,
     )
     return cleaned.strip()
 
@@ -29,7 +29,7 @@ def gather_pgp_keys(key_holders):
         if not safe_holder or safe_holder != holder or ".." in holder:
             raise ValueError(f"Invalid key holder name: {holder}")
         path = os.path.join(pgp_dir, f"{safe_holder}.asc")
-        with open(path, "r") as f:
+        with open(path) as f:
             content = f.read()
         base64_pgp_keys.append(convert_pgp_key(content))
     return base64_pgp_keys

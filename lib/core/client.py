@@ -120,7 +120,7 @@ class LocalVaultClient:
                     self.logger.warning(f"Resource already exists at {path}. Skipping.")
                     responses.append({})
                 else:
-                    raise e
+                    raise
 
         return responses
 
