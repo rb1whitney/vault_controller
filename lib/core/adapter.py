@@ -1,5 +1,5 @@
-from .hvac_client import HvacClient
 from .errors import VaultClientError
+from .hvac_client import HvacClient
 from .logger import get_logger
 
 logger = get_logger("vault_client_adapter")

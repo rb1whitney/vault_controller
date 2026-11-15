@@ -1,7 +1,10 @@
-import pytest
 from unittest.mock import patch
+
+import pytest
+
 from lib.core import command as secure_cmd
 from lib.core.errors import VaultError
+
 
 def test_run_valid_command():
     with patch("subprocess.run") as mock_run:

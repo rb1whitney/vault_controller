@@ -16,4 +16,3 @@ class VaultError(Exception):
 
 class VaultClientError(VaultError):
     """Specific error for Vault HTTP client failures."""
-    pass

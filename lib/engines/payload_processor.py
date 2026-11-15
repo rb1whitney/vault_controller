@@ -143,11 +143,10 @@ class PayloadProcessor:
         if "sys/policy" in path and action == "post":
             api_object["api_payload"] = {"policy": json.dumps(api_object["api_payload"])}
 
-        if "/roleset/" in path and action == "post":
-            if "bindings" in api_object["api_payload"]:
-                api_object["api_payload"]["bindings"] = json.dumps(
-                    api_object["api_payload"]["bindings"]
-                )
+        if "/roleset/" in path and action == "post" and "bindings" in api_object["api_payload"]:
+            api_object["api_payload"]["bindings"] = json.dumps(
+                api_object["api_payload"]["bindings"]
+            )
 
     def _get_nested(self, data, keys):
         """Helper to navigate nested dictionaries."""

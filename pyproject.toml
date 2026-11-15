@@ -40,6 +40,9 @@ include = ["bin*", "lib*"]
 line-length = 88
 target-version = "py38"
 
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "UP", "SIM", "PIE", "RUF", "LOG", "FURB", "PLW1510", "TRY201"]
+
 [tool.pytest.ini_options]
 minversion = "6.0"
 addopts = "-ra -q"

@@ -1,27 +1,30 @@
+import glob
+import json
+import logging
+import os
+import sys
+from typing import Optional
+
 import typer
+import yaml
 from rich.console import Console
 from rich.logging import RichHandler
-from rich.table import Table
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
-import logging
-import sys
-import os
-from typing import Optional
-import yaml
-import json
-import glob
+from rich.table import Table
 
 # Ensure repo root is in path for imports
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from lib.core.client import LocalVaultClient
+from lib.engines.payload_processor import PayloadProcessor
 from lib.utils import (
     crypto as vault_crypto,
+)
+from lib.utils import (
     ops,
     settings,
 )
-from lib.engines.payload_processor import PayloadProcessor
 from lib.validation.manager import ValidationManager
 
 app = typer.Typer(
@@ -157,7 +160,7 @@ def cluster_init(
                                 yaml_files.append(os.path.join(root, f))
                     yaml_files.sort()
                     for f_path in yaml_files:
-                        with open(f_path, "r") as f:
+                        with open(f_path) as f:
                             data = yaml.safe_load(f)
                         target_client = client
                         if "_namespace" in data:
@@ -348,7 +351,7 @@ def secrets_deploy(
                 task = progress.add_task("Deploying configuration...", total=len(yaml_files))
                 for f_path in yaml_files:
                     progress.update(task, description=f"Processing {os.path.basename(f_path)}")
-                    with open(f_path, "r") as f:
+                    with open(f_path) as f:
                         data = yaml.safe_load(f)
 
                     target_ns = data.get("_namespace") or namespace
@@ -393,7 +396,7 @@ def secrets_list(
     logger = logging.getLogger("vault-ctl")
     try:
         config = settings.get_cluster(name)
-        ns = namespace if namespace else (config.config_env if auth_namespace else None)
+        ns = namespace or (config.config_env if auth_namespace else None)
         client = LocalVaultClient(config.api_endpoint, logger, namespace=ns)
         client.login(auth_method=auth_method, mount_point=mount_path)
 
@@ -437,7 +440,7 @@ def secrets_sync(
         secret_paths = ops.list_secrets_func(client, source_kv, source_path)
         for s_path in secret_paths:
             api_object = {}
-            api_path = "v1/{0}{1}".format(source_kv, s_path)
+            api_path = f"v1/{source_kv}{s_path}"
             api_payload = client.get(api_path)['data']
 
             api_object['api_action'] = 'post'
@@ -453,7 +456,7 @@ def secrets_sync(
             older_json_payload = {}
             if os.path.exists(json_file):
                 try:
-                    with open(json_file, 'r') as f:
+                    with open(json_file) as f:
                         older_json_payload = json.load(f)["api_paths"][0]['api_payload']
                 except (OSError, json.JSONDecodeError, KeyError, IndexError):
                     pass
@@ -498,7 +501,7 @@ def secrets_validate(
             yaml_files.append(filepath)
         else:
             try:
-                with open(filepath, 'r') as f:
+                with open(filepath) as f:
                     json.load(f)
             except (OSError, json.JSONDecodeError):
                 invalid_files.append(filepath)

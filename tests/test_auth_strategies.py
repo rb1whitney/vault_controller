@@ -2,6 +2,7 @@ import os
 from unittest.mock import MagicMock, patch
 
 import pytest
+
 from lib.auth.base import BaseAuthStrategy
 from lib.auth.factory import AuthStrategyFactory
 

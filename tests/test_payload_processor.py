@@ -1,6 +1,9 @@
-import pytest
 from unittest.mock import MagicMock
+
+import pytest
+
 from lib.engines.payload_processor import PayloadProcessor
+
 
 @pytest.fixture
 def mock_client():
